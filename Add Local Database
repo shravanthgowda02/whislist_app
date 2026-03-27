@@ -1,0 +1,108 @@
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:math';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox('wishlistBox');
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final box = Hive.box('wishlistBox');
+
+  @override
+  Widget build(BuildContext context) {
+    final items = box.values.toList();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Wishlist")),
+      body: items.isEmpty
+          ? const Center(child: Text("No items yet"))
+          : ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index] as Map;
+
+                return ListTile(
+                  title: Text(item['name']),
+                  subtitle: Text("₹${item['price']}"),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      box.deleteAt(index);
+                      setState(() {});
+                    },
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addItem(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _addItem(BuildContext context) {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Item"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text;
+              final price =
+                  double.tryParse(priceController.text) ?? 0;
+
+              box.add({
+                'id': Random().nextDouble().toString(),
+                'name': name,
+                'price': price,
+              });
+
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text("Add"),
+          )
+        ],
+      ),
+    );
+  }
+}
