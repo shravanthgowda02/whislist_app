@@ -202,6 +202,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
+            IconButton(
+  icon: const Icon(Icons.analytics),
+  tooltip: 'View Analytics',
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AnalyticsScreen(items: _items),
+      ),
+    );
+  },
+),
+
             // Share list
             IconButton(
               icon: const Icon(Icons.share),
