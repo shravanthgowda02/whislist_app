@@ -160,6 +160,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+  icon: const Icon(Icons.analytics),
+  tooltip: 'View Analytics',
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AnalyticsScreen(items: _items),
+      ),
+    );
+  },
+),
+
+          IconButton(
             icon: const Icon(Icons.share),
             onPressed: () {
               CollaborativeListService.shareWishlist(_items, "My Wishlist");
