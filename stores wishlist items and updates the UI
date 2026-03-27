@@ -1,0 +1,24 @@
+import 'package:flutter/material.dart';
+import '../models/wishlist_item.dart';
+
+class WishlistProvider extends ChangeNotifier {
+  final List<WishlistItem> _items = [];
+
+  List<WishlistItem> get items => _items;
+
+  void addItem(String name, double price) {
+    _items.add(
+      WishlistItem(
+        id: DateTime.now().toString(),
+        name: name,
+        price: price,
+      ),
+    );
+    notifyListeners();
+  }
+
+  void removeItem(String id) {
+    _items.removeWhere((item) => item.id == id);
+    notifyListeners();
+  }
+}
