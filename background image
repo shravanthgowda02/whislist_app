@@ -1,0 +1,107 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 1.0, end: 1.1).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Animated Background
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _animation.value,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: NetworkImage(
+                        "https://img.freepik.com/premium-vector/wishlist-flat-landing-page-website-template-delivery_676904-5192.jpg?w=2000",
+                      ),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Dark overlay
+          Container(
+            color: Colors.black.withOpacity(0.5),
+          ),
+
+          // Your UI content
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  "Wishlist App",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Welcome Back",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
