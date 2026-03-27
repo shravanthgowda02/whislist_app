@@ -6,6 +6,8 @@ import 'add_edit_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/wishlist_card.dart';
 import '../widgets/wishlist_logo.dart';
+import 'analytics_screen.dart';
+
 
 enum SortOption {
   dateAdded,
