@@ -1,0 +1,302 @@
+import 'package:flutter/material.dart';
+import '../models/wishlist_item.dart';
+import '../services/storage_service.dart';
+import '../services/collaborative_list_service.dart';
+import 'add_edit_screen.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/wishlist_card.dart';
+import '../widgets/wishlist_logo.dart';
+import 'analytics_screen.dart';
+
+enum SortOption {
+  dateAdded,
+  priceLowToHigh,
+  priceHighToLow,
+  priority,
+  alphabetical,
+}
+
+extension SortOptionExtension on SortOption {
+  String get displayName {
+    switch (this) {
+      case SortOption.dateAdded:
+        return 'Date Added';
+      case SortOption.priceLowToHigh:
+        return 'Price: Low → High';
+      case SortOption.priceHighToLow:
+        return 'Price: High → Low';
+      case SortOption.priority:
+        return 'Priority';
+      case SortOption.alphabetical:
+        return 'A → Z';
+    }
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final StorageService _storageService = StorageService();
+
+  List<WishlistItem> _items = [];
+  List<WishlistItem> _filteredItems = [];
+
+  bool _showCompleted = true;
+  String _filterCategory = 'All';
+  SortOption _sortOption = SortOption.dateAdded;
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    await _storageService.init();
+    await _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    setState(() => _isLoading = true);
+
+    final items = await _storageService.getAllItems();
+
+    setState(() {
+      _items = items;
+      _isLoading = false;
+    });
+
+    _applyFiltersAndSort();
+  }
+
+  void _applyFiltersAndSort() {
+    List<WishlistItem> temp = _items.where((item) {
+      final categoryMatch =
+          _filterCategory == 'All' || item.category == _filterCategory;
+      final completionMatch =
+          _showCompleted || (!_showCompleted && !item.isPurchased);
+      return categoryMatch && completionMatch;
+    }).toList();
+
+    temp.sort((a, b) {
+      switch (_sortOption) {
+        case SortOption.dateAdded:
+          return b.createdAt.compareTo(a.createdAt);
+        case SortOption.priceLowToHigh:
+          return (a.price ?? 0).compareTo(b.price ?? 0);
+        case SortOption.priceHighToLow:
+          return (b.price ?? 0).compareTo(a.price ?? 0);
+        case SortOption.priority:
+          if (a.priority == b.priority) {
+            return b.createdAt.compareTo(a.createdAt);
+          }
+          return a.priority == Priority.mustHave ? -1 : 1;
+        case SortOption.alphabetical:
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      }
+    });
+
+    setState(() => _filteredItems = temp);
+  }
+
+  Future<void> _deleteItem(String id) async {
+    await _storageService.deleteItem(id);
+    await _loadItems();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Item deleted')),
+    );
+  }
+
+  Future<void> _togglePurchased(WishlistItem item) async {
+    final updatedItem = item.copyWith(isPurchased: !item.isPurchased);
+    await _storageService.updateItem(updatedItem);
+    await _loadItems();
+  }
+
+  Future<void> _navigateToAddEdit([WishlistItem? item]) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddEditScreen(item: item),
+      ),
+    );
+
+    if (result == true) {
+      _loadItems();
+    }
+  }
+
+  List<String> _getCategories() {
+    final categories =
+        _items.map((e) => e.category).whereType<String>().toSet();
+    return ['All', ...categories];
+  }
+
+  double _totalPrice() {
+    return _items.fold(0, (sum, item) => sum + (item.price ?? 0));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = _getCategories();
+    final purchasedCount = _items.where((e) => e.isPurchased).length;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            WishlistLogo(size: 32),
+            const SizedBox(width: 10),
+            const Text("Wishlist"),
+          ],
+        ),
+        actions: [
+          IconButton(
+  icon: const Icon(Icons.analytics),
+  tooltip: 'View Analytics',
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AnalyticsScreen(items: _items),
+      ),
+    );
+  },
+),
+
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () {
+              CollaborativeListService.shareWishlist(_items, "My Wishlist");
+            },
+          ),
+          PopupMenuButton<SortOption>(
+            icon: const Icon(Icons.sort),
+            onSelected: (option) {
+              _sortOption = option;
+              _applyFiltersAndSort();
+            },
+            itemBuilder: (_) => SortOption.values
+                .map(
+                  (e) => PopupMenuItem(
+                    value: e,
+                    child: Text(e.displayName),
+                  ),
+                )
+                .toList(),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Chip(
+              label: Text("$purchasedCount/${_items.length}"),
+            ),
+          )
+        ],
+      ),
+
+      // 🔥 Pull to refresh added
+      body: RefreshIndicator(
+        onRefresh: _loadItems,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _items.isEmpty
+                ? EmptyState(onAddPressed: () => _navigateToAddEdit())
+                : Column(
+                    children: [
+                      // 🔥 Category Filters
+                      SizedBox(
+                        height: 50,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.all(8),
+                          children: categories.map((category) {
+                            final selected = _filterCategory == category;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(category),
+                                selected: selected,
+                                onSelected: (_) {
+                                  _filterCategory = category;
+                                  _applyFiltersAndSort();
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      // Toggle completed
+                      SwitchListTile(
+                        title: const Text("Show purchased"),
+                        value: _showCompleted,
+                        onChanged: (val) {
+                          _showCompleted = val;
+                          _applyFiltersAndSort();
+                        },
+                      ),
+
+                      // 🔥 Total price display
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Total: ₹${_totalPrice().toStringAsFixed(2)}",
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // List
+                      Expanded(
+                        child: _filteredItems.isEmpty
+                            ? const Center(child: Text("No items found"))
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(12),
+                                itemCount: _filteredItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = _filteredItems[index];
+
+                                  return AnimatedContainer(
+                                    duration:
+                                        Duration(milliseconds: 300 + index * 50),
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    child: WishlistCard(
+                                      item: item,
+                                      onEdit: () =>
+                                          _navigateToAddEdit(item),
+                                      onDelete: () =>
+                                          _deleteItem(item.id),
+                                      onTogglePurchased: () =>
+                                          _togglePurchased(item),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+      ),
+
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _navigateToAddEdit(),
+        icon: const Icon(Icons.add),
+        label: const Text("Add Item"),
+      ),
+    );
+  }
+}

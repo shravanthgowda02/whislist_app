@@ -6,6 +6,8 @@ import 'add_edit_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/wishlist_card.dart';
 import '../widgets/wishlist_logo.dart';
+import 'analytics_screen.dart';
+
 
 enum SortOption {
   dateAdded,
@@ -200,6 +202,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
+            IconButton(
+  icon: const Icon(Icons.analytics),
+  tooltip: 'View Analytics',
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AnalyticsScreen(items: _items),
+      ),
+    );
+  },
+),
+
             // Share list
             IconButton(
               icon: const Icon(Icons.share),
